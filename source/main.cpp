@@ -98,8 +98,8 @@ int main(int argc, char *argv[]) {
         }
         node++;
     }
-    while (j < num_nodes) {
-        in_offsets[j] = -1;
+    while (node < num_nodes) {
+        in_offsets[node] = -1;
         node++;
     }
 
