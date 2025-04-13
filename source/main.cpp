@@ -40,10 +40,10 @@ struct DijkstraNode {
     int idx;
     float dist;
 
-    friend bool operator<(const DijikstraNode& a, const DijikstraNode& b);
+    friend bool operator<(const DijkstraNode& a, const DijkstraNode& b);
 };
 
-bool operator<(const DijikstraNode& a, const DijikstraNode& b) {
+bool operator<(const DijkstraNode& a, const DijkstraNode& b) {
     return a.dist < b.dist;
 }
 
