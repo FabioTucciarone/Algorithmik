@@ -36,6 +36,17 @@ struct Edge {
     friend std::ostream& operator<<(std::ostream& os, const Edge& dt);
 };
 
+struct DijkstraNode {
+    int idx;
+    float dist;
+
+    friend bool operator<(const DijikstraNode& a, const DijikstraNode& b);
+};
+
+bool operator<(const DijikstraNode& a, const DijikstraNode& b) {
+    return a.dist < b.dist;
+}
+
 std::ostream& operator<<(std::ostream& os, const Edge& e) {
     os << "(" << e.source << ',' << e.target << ',' << e.cost << ")";
     return os;
@@ -86,6 +97,7 @@ int main(int argc, char *argv[]) {
     std::getline(file, line);
     const int num_edges = std::stoi(line);
 
+    std::cout << "[INFO] Anzahl Knoten: " << num_nodes << ", Anzahl Kanten: " << num_edges << std::endl;
 
     for (int i = 0; i < num_nodes; i++) {
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -128,10 +140,10 @@ int main(int argc, char *argv[]) {
         }
         node++;
     }
-    while (node < num_nodes) {
-        out_offsets.at(node) = -1;
-        node++;
-    }
+    //while (node < num_nodes) {
+    //    out_offsets.at(node) = -1;
+    //    node++;
+    //}
 
     int previous = num_nodes;
     for (int i = num_nodes-1; i >= 0; i--) {
@@ -155,10 +167,10 @@ int main(int argc, char *argv[]) {
         }
         node++;
     }
-    while (node < num_nodes) {
-        in_offsets.at(node) = -1;
-        node++;
-    }
+    //while (node < num_nodes) {
+    //    in_offsets.at(node) = -1;
+    //    node++;
+    //}
     
     previous = num_nodes;
     for (int i = num_nodes-1; i >= 0; i--) {
@@ -169,25 +181,25 @@ int main(int argc, char *argv[]) {
         }
     }
 
-#if false
+    /*
     std::cout << "Kanten (Startordnung):\n";
     for (int i = 0; i < num_edges; i++) {
-        std::cout << edges.at(i) << "\n";
+        std::cout << edges.at(i) << ", ";
     }
-    std::cout << "Offsets (ausgehend):\n";
+    std::cout << "\nOffsets (ausgehend):\n";
     for (int i = 0; i < num_nodes; i++) {
-        std::cout << out_offsets.at(i) << "\n";
+        std::cout << out_offsets.at(i) << ", ";
     }
-
-    std::cout << "Kanten (Zielordnung):\n";
+    std::cout << "\nKanten (Zielordnung):\n";
     for (int i = 0; i < num_edges; i++) {
-        std::cout << edges.at(target_ordering.at(i)) << "\n";
+        std::cout << edges.at(target_ordering.at(i)) << ", ";
     }
-    std::cout << "Offsets (eingehend):\n";
+    std::cout << "\nOffsets (eingehend):\n";
     for (int i = 0; i < num_nodes; i++) {
-        std::cout << in_offsets.at(i) << "\n";
+        std::cout << in_offsets.at(i) << ", ";
     }
-#endif
+    std::cout << std::endl;
+    */
 
     // Djikstra: https://www2.informatik.uni-stuttgart.de/bibliothek/ftp/medoc.ustuttgart_fi/BCLR-0114/BCLR-0114.pdf
 
@@ -196,10 +208,10 @@ int main(int argc, char *argv[]) {
 
     int components = 0;
 
+    std::queue<int> q;
     for (int root_node = 0; root_node < num_nodes; root_node++) {
         if (!visited[root_node]) {
             //DFS:
-            std::queue<int> q;
             visited.at(root_node) = true;
             q.push(root_node);
             while (!q.empty()) {
@@ -232,4 +244,42 @@ int main(int argc, char *argv[]) {
             // std::cout << "\ncomponents=" << components << "\n";
         }
     }
+
+    std::cout << "[INFO] Schwache Zusamenhangskomponenten: " << components << std::endl;
+
+    int s = 2;
+    int t = 3;
+
+    std::vector<float> distances;
+    distances.resize(num_nodes, std::numeric_limits<float>::infinity());
+    std::priority_queue<DijkstraNode> pq;
+
+    pq.emplace(s, 0.0f);
+    distances[s]= 0.0f;
+    
+    for (int i = 0; i < num_nodes; i++) {
+        DijkstraNode node = pq.top();
+        pq.pop();
+        if (node.dist == distances[node.idx]) {
+            //if (node.idx == t) {
+            //    break;
+            //}
+            int max = (node.idx == num_nodes - 1) ? num_nodes : out_offsets[node.idx + 1];
+            for (int edge_index = out_offsets[node.idx]; edge_index < max; edge_index++) {
+                Edge edge = edges[edge_index];
+                if (distances[edge.target] > distances[node.idx] + edge.cost) {
+                    distances[edge.target] = distances[node.idx] + edge.cost;
+                    pq.emplace(edge.target, distances[edge.target]);
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < num_nodes; i++) {
+        std::cout << distances[i] << ",";
+    }
+
+    // for i = 1,...,num_nodes:
+    // 
+
 }
