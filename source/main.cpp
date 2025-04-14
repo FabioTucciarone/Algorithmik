@@ -31,7 +31,7 @@ std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) 
     using clock = std::chrono::steady_clock;
     clock::time_point start_time = clock::now();
 
-    std::vector<bool> visited; //TODO: bitrepräsentierung ?
+    std::vector<bool> visited;
     visited.resize(graph.num_nodes, false);
 
     int num_components = 0;
@@ -72,7 +72,7 @@ std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
     std::ifstream file(file_path);
 
     if (file.fail()) {
-        std::cout << "Queriedatei nicht gefunden\n";
+        std::cout << "Querydatei nicht gefunden\n";
         return;
     }
 

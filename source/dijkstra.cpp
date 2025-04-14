@@ -26,8 +26,8 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
         last_start = start;
     }
 
-    queue.emplace(start, 0.0f);
-    distances[start] = 0.0f;
+    queue.emplace(start, 0);
+    distances[start] = 0;
     
     for (int i = 0; i < graph.num_nodes; i++) {         
         DNode node = queue.top();

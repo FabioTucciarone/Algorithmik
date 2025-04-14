@@ -6,7 +6,7 @@ std::ostream& operator<<(std::ostream& os, const Edge& e) {
 }
 
 Graph::Graph(const std::string &file_path) {
-    std::ifstream file(file_path); //TODO: Existiert file_path?
+    std::ifstream file(file_path);
 
     if (file.fail()) {
         std::cout << "Graphendatei nicht gefunden\n";
