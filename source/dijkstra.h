@@ -20,6 +20,7 @@ struct DNode {
     int idx;
     int dist;
 
+    DNode(int idx, int dist);
     friend bool operator<(const DNode& a, const DNode& b);
 };
 

@@ -1,12 +1,18 @@
 #include "dijkstra.h"
 
+DNode::DNode(int idx, int dist) : idx(idx), dist(dist) {}
+
+bool operator<(const DNode& a, const DNode& b) {
+    return a.dist > b.dist;
+}
+
 Dijkstra::Dijkstra(Graph &graph) : graph(graph), last_start(-1) {
     distances.resize(graph.num_nodes, std::numeric_limits<int>::max());
 }
 
 std::pair<int, int64_t> Dijkstra::query(int start, int target) {
 
-    if (start >= graph.num_nodes && target >= graph.num_nodes) {
+    if (start >= graph.num_nodes || target >= graph.num_nodes) {
         return {std::numeric_limits<int>::max(), 0};
     }
 
@@ -41,9 +47,4 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
     int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     return {distances[target], duration};
-}
-
-
-bool operator<(const DNode& a, const DNode& b) {
-    return a.dist > b.dist;
 }

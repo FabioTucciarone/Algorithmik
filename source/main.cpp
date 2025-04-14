@@ -1,16 +1,10 @@
 
 #include <iostream>
 #include <fstream>
-#include <algorithm>
 #include <string>
 #include <vector>
-#include <limits>
-#include <charconv>
-#include <array>
-#include <numeric>
-#include <algorithm>
-#include <queue>
 #include <tuple>
+#include <chrono>
 #include <optional>
 
 #include "graph.h"
@@ -102,7 +96,7 @@ int main(int argc, char *argv[]) {
 
     std::string graph_path   = get_cmd_argument(argc, argv, "-graph").value_or("graph.fmi");
     std::string queries_path = get_cmd_argument(argc, argv, "-queries").value_or("queries.txt");
-    std::string results_path = get_cmd_argument(argc, argv, "-results").value_or("results.txt");
+    std::string results_path = get_cmd_argument(argc, argv, "-results").value_or("result.txt");
     std::string mode         = get_cmd_argument(argc, argv, "-mode").value_or("both");
 
     std::vector<std::pair<int,int>> queries = read_query_file(queries_path);

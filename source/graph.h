@@ -73,7 +73,7 @@ public:
         int i;
 
     public:
-        inline Iterator(Graph &graph, int i) : i(i), graph(graph) {}
+        inline Iterator(Graph &graph, int i) : graph(graph), i(i) {}
 
         inline Edge &operator*() const { 
             if constexpr (edge_type == EdgeType::INCOMING) {
