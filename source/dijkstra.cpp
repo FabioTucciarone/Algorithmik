@@ -1,13 +1,13 @@
 #include "dijkstra.h"
 
 Dijkstra::Dijkstra(Graph &graph) : graph(graph), last_start(-1) {
-    distances.resize(graph.num_nodes, std::numeric_limits<float>::infinity());
+    distances.resize(graph.num_nodes, std::numeric_limits<int>::max());
 }
 
 std::pair<int, int64_t> Dijkstra::query(int start, int target) {
 
     if (start >= graph.num_nodes && target >= graph.num_nodes) {
-        return {std::numeric_limits<float>::infinity(), 0};
+        return {std::numeric_limits<int>::max(), 0};
     }
 
     clock::time_point start_time = clock::now();
@@ -15,7 +15,7 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
     queue = std::priority_queue<DNode>();
     if(last_start != start) {
         for (int node : touched_nodes) {
-            distances[node] = std::numeric_limits<float>::infinity();
+            distances[node] = std::numeric_limits<int>::max();
         }
         last_start = start;
     }
@@ -27,9 +27,7 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
         DNode node = queue.top();
         queue.pop();
         if (node.dist == distances[node.idx]) {
-            IndexRange range = graph.get_out_range(node.idx);
-            for (int edge_index = range.begin; edge_index < range.end; edge_index++) {
-                Edge edge = graph.edges[edge_index];
+            for (Edge edge : graph.get_outgoing_edges(node.idx)) {
                 if (distances[edge.target] > distances[node.idx] + edge.cost) {
                     distances[edge.target] = distances[node.idx] + edge.cost;
                     touched_nodes.push_back(edge.target);

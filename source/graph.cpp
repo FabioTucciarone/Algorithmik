@@ -6,10 +6,12 @@ std::ostream& operator<<(std::ostream& os, const Edge& e) {
 }
 
 Graph::Graph(const std::string &file_path) {
-    
-    clock::time_point start_time = clock::now();
-
     std::ifstream file(file_path); //TODO: Existiert file_path?
+
+    if (file.fail()) {
+        std::cout << "Graphendatei nicht gefunden\n";
+        return;
+    }
 
     std::string line;
     for (int i = 0; i < 5; i++) {
@@ -46,11 +48,6 @@ Graph::Graph(const std::string &file_path) {
     
     generate_offset_list<false>(out_offsets);
     generate_offset_list<true>(in_offsets);
-
-    clock::time_point end_time = clock::now();
-    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-
-    std::cout << "[INFO] Graph eingelesen: Anzahl Knoten: " << num_nodes << ", Anzahl Kanten: " << num_edges << " [t=" << duration << "ms]" << std::endl;
 }
 
 template<bool in_list>
@@ -79,24 +76,11 @@ void Graph::generate_offset_list(std::vector<int> &offsets) {
     }
 }
 
-IndexRange::IndexRange(int begin, int end) : begin(begin), end(end) {}
 
-IndexRange Graph::get_out_range(int node) {
-    const int start = out_offsets[node];
-    const int end = (node == num_nodes - 1) ? num_nodes : out_offsets[node + 1];
-    return {start, end};
+EdgeRange<EdgeType::OUTGOING> Graph::get_outgoing_edges(int node) {
+    return {*this, node};
 }
 
-IndexRange Graph::get_in_range(int node) {
-    const int start = in_offsets[node];
-    const int end = (node == num_nodes - 1) ? num_nodes : in_offsets[node + 1];
-    return {start, end};
-}
-
-int Graph::get_out_node(int edge_index) {
-    return edges[edge_index].target;
-}
-
-int Graph::get_in_node(int edge_index) {
-    return edges[target_ordering[edge_index]].source;
+EdgeRange<EdgeType::INCOMING> Graph::get_incoming_edges(int node) {
+    return {*this, node};
 }

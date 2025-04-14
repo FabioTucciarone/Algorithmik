@@ -51,20 +51,16 @@ std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) 
                 int source_node = q.front();
                 q.pop();
 
-                IndexRange range = graph.get_out_range(source_node);
-                for (int edge_index = range.begin; edge_index < range.end; edge_index++) {
-                    int target_node = graph.get_out_node(edge_index);
-                    if (!visited[target_node]) {
-                        visited[target_node] = true;
-                        q.push(target_node);
+                for (Edge edge : graph.get_outgoing_edges(source_node)) {
+                    if (!visited[edge.target]) {
+                        visited[edge.target] = true;
+                        q.push(edge.target);
                     }
                 }
-                range = graph.get_in_range(source_node);
-                for (int edge_index = range.begin; edge_index < range.end; edge_index++) {
-                    int target_node = graph.get_in_node(edge_index);
-                    if (!visited[target_node]) {
-                        visited[target_node] = true;
-                        q.push(target_node);
+                for (Edge edge : graph.get_incoming_edges(source_node)) {
+                    if (!visited[edge.source]) {
+                        visited[edge.source] = true;
+                        q.push(edge.source);
                     }
                 }
             }
@@ -99,29 +95,44 @@ std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
 }
 
 
-/// @brief [-graph filepath] [-queries filepath] [-results filepath]
+/// @brief [-graph filepath] [-queries filepath] [-results filepath] [-mode {components, distances, both}]
 int main(int argc, char *argv[]) {
 
-    std::optional<std::string> graph_path   = get_cmd_argument(argc, argv, "-graph");
-    std::optional<std::string> queries_path = get_cmd_argument(argc, argv, "-queries");
-    std::optional<std::string> results_path = get_cmd_argument(argc, argv, "-results");
+    using clock = std::chrono::steady_clock;
 
-    std::vector<std::pair<int,int>> queries = read_query_file(queries_path.value_or("queries.txt"));
+    std::string graph_path   = get_cmd_argument(argc, argv, "-graph").value_or("graph.fmi");
+    std::string queries_path = get_cmd_argument(argc, argv, "-queries").value_or("queries.txt");
+    std::string results_path = get_cmd_argument(argc, argv, "-results").value_or("results.txt");
+    std::string mode         = get_cmd_argument(argc, argv, "-mode").value_or("both");
 
-    Graph graph{ graph_path.value_or("graph.fmi") };
+    std::vector<std::pair<int,int>> queries = read_query_file(queries_path);
+    
+    std::cout << " > Graph einlesen:\n";
+    
+    clock::time_point start_time = clock::now();
 
-    auto [components, duration1] = calculate_weakly_connected_components(graph);
-    std::cout << "[INFO] Schwache Zusamenhangskomponenten: " << components << " [t=" << duration1 << "ms]" << std::endl;
+    Graph graph{ graph_path };
+    
+    clock::time_point end_time = clock::now();
+    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    std::cout << "   n=" << graph.num_nodes << ", m=" << graph.num_edges << " [t=" << duration << "ms]" << std::endl;
 
-    std::ofstream results_file;
-    results_file.open(results_path.value_or("result.txt"));
-
-    Dijkstra dijkstra(graph);
-    for (auto [s, t] : queries) {
-        auto [distance, duration2] = dijkstra.query(s, t);
-        std::cout << "[INFO] Anfrage " << s << "->" << t << ": d=" << distance << " [t=" << duration2 << "ms]" << "\n";
-        results_file << s << " " << t << " " << distance << " " << duration2  << "\n";
+    if (mode == "components" || mode == "both") {
+        std::cout << " > Berechne schwache Zusammenhangskomponenten:\n";
+        auto [components, duration] = calculate_weakly_connected_components(graph);
+        std::cout << "   n=" << components << " [t=" << duration << "ms]" << std::endl;
     }
-    results_file.close();
+    if (mode == "distances" || mode == "both") {
+        std::cout << " > Berechne Distanzen:\n";
+        std::ofstream results_file;
+        results_file.open(results_path);
 
+        Dijkstra dijkstra(graph);
+        for (auto [s, t] : queries) {
+            auto [distance, duration2] = dijkstra.query(s, t);
+            std::cout << "   " << s << "->" << t << ": d=" << distance << " [t=" << duration2 << "ms]" << "\n";
+            results_file << s << " " << t << " " << distance << " " << duration2  << "\n";
+        }
+        results_file.close();
+    }
 }

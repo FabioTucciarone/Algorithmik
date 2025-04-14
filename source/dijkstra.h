@@ -30,7 +30,7 @@ class Dijkstra {
     using clock = std::chrono::steady_clock;
 
     std::vector<int> touched_nodes;
-    std::vector<float> distances;
+    std::vector<int> distances;
     std::priority_queue<DNode> queue;
     Graph &graph;
     int last_start;
