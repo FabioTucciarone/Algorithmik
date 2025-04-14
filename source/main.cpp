@@ -69,7 +69,13 @@ std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) 
 
 std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
 
-    std::ifstream file(file_path); //TODO: Existiert file_path?
+    std::ifstream file(file_path);
+
+    if (file.fail()) {
+        std::cout << "Queriedatei nicht gefunden\n";
+        return;
+    }
+
     std::string line;
 
     std::vector<std::pair<int,int>> queries;
