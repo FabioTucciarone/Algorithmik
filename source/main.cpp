@@ -11,256 +11,117 @@
 #include <algorithm>
 #include <queue>
 #include <tuple>
+#include <optional>
+
+#include "graph.h"
+#include "dijkstra.h"
 
 bool has_cmd_argument(int argc, char **argv, const std::string &option) {
     char **end = argv + argc;
     return std::find(argv, end, option) != end;
 }
 
-char *get_cmd_argument(int argc, char **argv, const std::string &option) {
+std::optional<std::string> get_cmd_argument(int argc, char **argv, const std::string &option) {
     char **end = argv + argc;
     char **itr = std::find(argv, end, option);
 
     if (itr != end && ++itr != end){
-        return *itr;
+        return std::optional<std::string>{*itr};
     } else {
-        return 0;
+        return std::nullopt;
     }
 }
 
+std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) {
 
-struct Edge {
-    int source;
-    int target;
-    int cost;
+    using clock = std::chrono::steady_clock;
+    clock::time_point start_time = clock::now();
 
-    friend std::ostream& operator<<(std::ostream& os, const Edge& dt);
-};
+    std::vector<bool> visited; //TODO: bitrepräsentierung ?
+    visited.resize(graph.num_nodes, false);
 
-struct DijkstraNode {
-    int idx;
-    float dist;
-
-    friend bool operator<(const DijkstraNode& a, const DijkstraNode& b);
-};
-
-bool operator<(const DijkstraNode& a, const DijkstraNode& b) {
-    return a.dist < b.dist;
-}
-
-std::ostream& operator<<(std::ostream& os, const Edge& e) {
-    os << "(" << e.source << ',' << e.target << ',' << e.cost << ")";
-    return os;
-}
-
-
-void apply_random_permutation(std::vector<int> &list) {
-    for (int i = 0; i < list.size(); i++) {
-        int p = rand() % list.size();
-        std::swap(list.at(i), list[p]);
-    }  
-}
-
-void reorder_edge_list(std::vector<Edge> &edges, std::vector<int> &nodes) {
-    //TODO:
-}
-
-class Graph {
-public:
-    std::vector<int> out_offsets;
-    std::vector<int> in_offsets;
-    std::vector<int> target_ordering;
-    std::vector<Edge> edges;
-    int num_nodes;
-    int num_edges;
-
-    Graph(const std::string &file_path) {
-        read_graph_file(file_path);
-    }
-
-    void read_graph_file(const std::string &file_path) {
-        std::ifstream file(file_path); //TODO: Existiert file_path?
-
-        std::string line;
-        for (int i = 0; i < 5; i++) {
-            file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        }
-        std::getline(file, line);
-        num_nodes = std::stoi(line);
-        std::getline(file, line);
-        num_edges = std::stoi(line);
-
-        for (int i = 0; i < num_nodes; i++) {
-            file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        }
-        
-        edges.reserve(num_edges);
-        
-        while (std::getline(file, line)) {
-            const size_t pos1 = line.find(' ', 0);
-            const size_t pos2 = line.find(' ', pos1 + 1);
-            const size_t pos3 = line.find(' ', pos2 + 1);
-            
-            Edge e{};
-            std::from_chars(&line[0], &line[pos1], e.source); // ignore errors
-            std::from_chars(&line[pos1+1], &line[pos2], e.target);
-            std::from_chars(&line[pos2+1], &line[pos3], e.cost);
-            
-            edges.push_back(e);
-        }
-
-        std::cout << "[INFO] Anzahl Knoten: " << num_nodes << ", Anzahl Kanten: " << num_edges << std::endl;
-
-        target_ordering.resize(num_edges);
-        std::iota(target_ordering.begin(), target_ordering.end(), 0);
-        std::stable_sort(target_ordering.begin(), target_ordering.end(), [this](size_t i1, size_t i2) { return edges[i1].target < edges[i2].target; }); //TODO: drüber nachdenken, sekundärordnung nach source
-
-        generate_offset_list<false>(out_offsets);
-        generate_offset_list<true>(in_offsets);
-
-        std::cout << "\nOffsets (ausgehend):\n";
-        for (int i = 0; i < num_nodes; i++) {
-            std::cout << out_offsets.at(i) << ", ";
-        }
-        std::cout << "\nOffsets (eingehend):\n";
-        for (int i = 0; i < num_nodes; i++) {
-            std::cout << in_offsets.at(i) << ", ";
-        }
-        std::cout << std::endl;
-    }
-
-    template<bool in_list>
-    void generate_offset_list(std::vector<int> &offsets) {
-        offsets.resize(num_nodes, -1); //TODO: in_offsets und out_offsets zusammenlegen zu [(o1,i1), (o2,i2), ..., (on,in)] ?
-        int node = 0;
-        int edge_idx = 0;
-        while (edge_idx < num_edges && node < num_nodes) { //TODO: iterate through node list instead of node++
-            int edge_node = in_list ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
-            if (edge_node == node) {
-                offsets.at(node) = edge_idx;
-                while (edge_node == node && edge_idx < num_edges - 1) {
-                    edge_idx++;
-                    edge_node = in_list ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
-                }
-            }
-            node++;
-        }
-        int previous = num_nodes;
-        for (int i = num_nodes - 1; i >= 0; i--) {
-            if (offsets.at(i) == -1) {
-                offsets.at(i) = previous;
-            } else {
-                previous = offsets.at(i);
-            }
-        }
-    }
-
-    std::tuple<int, int> get_outgoing_node_range(int node) { //TODO: implement iterator
-        const int start = out_offsets[node];
-        const int end = (node == num_nodes - 1) ? num_nodes : out_offsets[node + 1];
-        return {start, end};
-    }
-
-    std::tuple<int, int> get_ingoing_node_range(int node) { //TODO: implement iterator
-        const int start = in_offsets[node];
-        const int end = (node == num_nodes - 1) ? num_nodes : in_offsets[node + 1];
-        return {start, end};
-    }
-};
-
-
-/// @brief [-f filepath] [-t]
-int main(int argc, char *argv[]) {
-
-    bool test_mode  = has_cmd_argument(argc, argv, "-t");
-    char *file_path = get_cmd_argument(argc, argv, "-f");
-
-    if (!file_path) {
-        std::cout << "[FEHLER] Kein Graph gewählt." << std::endl;
-        return -1;
-    }
-
-    Graph g{std::string(file_path)};
-
-    // Djikstra: https://www2.informatik.uni-stuttgart.de/bibliothek/ftp/medoc.ustuttgart_fi/BCLR-0114/BCLR-0114.pdf
-
-    std::vector<bool> visited; //TODO: bitrepräsentierung
-    visited.resize(g.num_nodes, false);
-
-    int components = 0;
+    int num_components = 0;
 
     std::queue<int> q;
-    for (int root_node = 0; root_node < g.num_nodes; root_node++) {
+    for (int root_node = 0; root_node < graph.num_nodes; root_node++) {
         if (!visited[root_node]) {
-            //DFS:
             visited.at(root_node) = true;
             q.push(root_node);
             while (!q.empty()) {
                 int source_node = q.front();
                 q.pop();
 
-                std::tuple<int, int> range = g.get_outgoing_node_range(source_node);
-                for (int edge_index = std::get<0>(range); edge_index < std::get<1>(range); edge_index++) {
-                    int target_node = g.edges[edge_index].target;
+                IndexRange range = graph.get_out_range(source_node);
+                for (int edge_index = range.begin; edge_index < range.end; edge_index++) {
+                    int target_node = graph.get_out_node(edge_index);
                     if (!visited[target_node]) {
                         visited[target_node] = true;
                         q.push(target_node);
-                        //std::cout << source_node << "-" << target_node << ",  " << (visited[target_node] ? "visited" : "new") << "\n";
                     }
                 }
-                range = g.get_ingoing_node_range(source_node);
-                for (int edge_index = std::get<0>(range); edge_index < std::get<1>(range); edge_index++) {
-                    int target_node = g.edges[g.target_ordering[edge_index]].source;
-                    //std::cout << source_node << "-" << target_node << ",  " << (visited[target_node] ? "visited" : "new") << "\n";
+                range = graph.get_in_range(source_node);
+                for (int edge_index = range.begin; edge_index < range.end; edge_index++) {
+                    int target_node = graph.get_in_node(edge_index);
                     if (!visited[target_node]) {
                         visited[target_node] = true;
                         q.push(target_node);
                     }
                 }
             }
-            components++;
-            // for (size_t i = 0; i < num_nodes; i++) {
-            //     std::cout << (visited[i] ? 1 : 0) << ","; 
-            // }
-            // std::cout << "\ncomponents=" << components << "\n";
+            num_components++;
         }
     }
+    clock::time_point end_time = clock::now();
+    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    std::cout << "[INFO] Schwache Zusamenhangskomponenten: " << components << std::endl;
+    return {num_components, duration};
+}
 
-    int s = 2;
-    int t = 3;
+std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
 
-    std::vector<float> distances;
-    distances.resize(g.num_nodes, std::numeric_limits<float>::infinity());
-    std::priority_queue<DijkstraNode> pq;
+    std::ifstream file(file_path); //TODO: Existiert file_path?
+    std::string line;
 
-    pq.emplace(s, 0.0f);
-    distances[s]= 0.0f;
-    
-    for (int i = 0; i < g.num_nodes; i++) {
-        DijkstraNode node = pq.top();
-        pq.pop();
-        if (node.dist == distances[node.idx]) {
-            //if (node.idx == t) {
-            //    break;
-            //}
-            auto [start, end] = g.get_outgoing_node_range(node.idx);
-            for (int edge_index = start; edge_index < end; edge_index++) {
-                Edge edge = g.edges[edge_index];
-                if (distances[edge.target] > distances[node.idx] + edge.cost) {
-                    distances[edge.target] = distances[node.idx] + edge.cost;
-                    pq.emplace(edge.target, distances[edge.target]);
-                }
-            }
-        }
+    std::vector<std::pair<int,int>> queries;
+
+    while (std::getline(file, line)) {
+        const size_t space_pos = line.find(' ', 0);
+        const size_t end_pos = std::min(line.find('\n', space_pos + 1), line.find(' ', space_pos + 1));
+
+        int source = 0;
+        int target = 0;
+        std::from_chars(&line[0], &line[space_pos], source); // ignore errors
+        std::from_chars(&line[space_pos + 1], &line[end_pos], target);
+
+        queries.emplace_back(source, target);
     }
+    return queries;
+}
 
-    for (int i = 0; i < g.num_nodes; i++) {
-        std::cout << distances[i] << ",";
+
+/// @brief [-graph filepath] [-queries filepath] [-results filepath]
+int main(int argc, char *argv[]) {
+
+    std::optional<std::string> graph_path   = get_cmd_argument(argc, argv, "-graph");
+    std::optional<std::string> queries_path = get_cmd_argument(argc, argv, "-queries");
+    std::optional<std::string> results_path = get_cmd_argument(argc, argv, "-results");
+
+    std::vector<std::pair<int,int>> queries = read_query_file(queries_path.value_or("queries.txt"));
+
+    Graph graph{ graph_path.value_or("graph.fmi") };
+
+    auto [components, duration1] = calculate_weakly_connected_components(graph);
+    std::cout << "[INFO] Schwache Zusamenhangskomponenten: " << components << " [t=" << duration1 << "ms]" << std::endl;
+
+    std::ofstream results_file;
+    results_file.open(results_path.value_or("result.txt"));
+
+    Dijkstra dijkstra(graph);
+    for (auto [s, t] : queries) {
+        auto [distance, duration2] = dijkstra.query(s, t);
+        std::cout << "[INFO] Anfrage " << s << "->" << t << ": d=" << distance << " [t=" << duration2 << "ms]" << "\n";
+        results_file << s << " " << t << " " << distance << " " << duration2  << "\n";
     }
-
-    // for i = 1,...,num_nodes:
-    // 
+    results_file.close();
 
 }
