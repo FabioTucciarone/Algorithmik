@@ -63,19 +63,19 @@ public:
 
 template<EdgeType edge_type>
 class EdgeRange {
-    Graph &graph;
+    const Graph &graph;
     int begin_idx;
     int end_idx;
 
 public:
     class Iterator {
-        Graph &graph;
+        const Graph &graph;
         int i;
 
     public:
-        inline Iterator(Graph &graph, int i) : graph(graph), i(i) {}
+        inline Iterator(const Graph &graph, int i) : graph(graph), i(i) {}
 
-        inline Edge &operator*() const { 
+        inline const Edge &operator*() const { 
             if constexpr (edge_type == EdgeType::INCOMING) {
                 return graph.edges[graph.target_ordering[i]];
             } else {
@@ -83,15 +83,15 @@ public:
             }
         }
 
-        inline Iterator& operator++() { i++; return *this; }  
-        inline bool operator== (const Iterator& b) { return i == b.i; };
-        inline bool operator!= (const Iterator& b) { return i != b.i; };
+        inline Iterator &operator++() { i++; return *this; }  
+        inline bool operator== (const Iterator& b) const { return i == b.i; };
+        inline bool operator!= (const Iterator& b) const { return i != b.i; };
     };
 
     inline Iterator begin() { return Iterator(graph, begin_idx); }
     inline Iterator end() { return Iterator(graph, end_idx); }
 
-    inline EdgeRange(Graph &graph, int node) : graph(graph) {
+    inline EdgeRange(const Graph &graph, const int node) : graph(graph) {
         if constexpr (edge_type == EdgeType::INCOMING) {
             begin_idx = graph.in_offsets[node];
             end_idx = (node == graph.num_nodes - 1) ? graph.num_edges : graph.in_offsets[node + 1];

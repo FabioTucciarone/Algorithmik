@@ -44,7 +44,9 @@ Graph::Graph(const std::string &file_path) {
 
     target_ordering.resize(num_edges);
     std::iota(target_ordering.begin(), target_ordering.end(), 0);
-    std::stable_sort(target_ordering.begin(), target_ordering.end(), [this](size_t i1, size_t i2) { return edges[i1].target < edges[i2].target; }); //TODO: drüber nachdenken, sekundärordnung nach source
+    std::stable_sort(target_ordering.begin(), target_ordering.end(), [this](size_t i1, size_t i2) { 
+        return edges[i1].target < edges[i2].target || (edges[i1].target == edges[i2].target && edges[i1].source < edges[i2].source); 
+    }); //TODO: drüber nachdenken
     
     generate_offset_list<false>(out_offsets);
     generate_offset_list<true>(in_offsets);

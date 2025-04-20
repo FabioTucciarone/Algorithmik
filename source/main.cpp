@@ -71,14 +71,13 @@ std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
 
     std::ifstream file(file_path);
 
+    std::string line;
+    std::vector<std::pair<int,int>> queries;
+
     if (file.fail()) {
         std::cout << "Querydatei nicht gefunden\n";
-        return;
+        return queries;
     }
-
-    std::string line;
-
-    std::vector<std::pair<int,int>> queries;
 
     while (std::getline(file, line)) {
         const size_t space_pos = line.find(' ', 0);
@@ -129,9 +128,9 @@ int main(int argc, char *argv[]) {
 
         Dijkstra dijkstra(graph);
         for (auto [s, t] : queries) {
-            auto [distance, duration2] = dijkstra.query(s, t);
-            std::cout << "   " << s << "->" << t << ": d=" << distance << " [t=" << duration2 << "ms]" << "\n";
-            results_file << s << " " << t << " " << distance << " " << duration2  << "\n";
+            auto [distance, duration] = dijkstra.query(s, t);
+            std::cout << "   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n";
+            results_file << s << " " << t << " " << distance << " " << duration  << "\n";
         }
         results_file.close();
     }
