@@ -45,7 +45,7 @@ class Graph {
     std::vector<int> target_ordering;
     std::vector<Edge> edges;
 
-    template<bool in_list>
+    template<EdgeType edge_type>
     void generate_offset_list(std::vector<int> &offsets);
 
 public:

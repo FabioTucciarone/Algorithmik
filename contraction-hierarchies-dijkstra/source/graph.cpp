@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "util.h"
 
 std::ostream& operator<<(std::ostream& os, const Edge& e) {
     os << "(" << e.source << ',' << e.target << ',' << e.cost << ")";
@@ -9,7 +10,7 @@ Graph::Graph(const std::string &file_path) {
     std::ifstream file(file_path);
 
     if (file.fail()) {
-        std::cout << "Graphendatei nicht gefunden\n";
+        println_error("Graphendatei nicht gefunden \"" + file_path + "\"");
         return;
     }
 
@@ -48,22 +49,22 @@ Graph::Graph(const std::string &file_path) {
         return edges[i1].target < edges[i2].target || (edges[i1].target == edges[i2].target && edges[i1].source < edges[i2].source); 
     }); //TODO: drüber nachdenken
     
-    generate_offset_list<false>(out_offsets);
-    generate_offset_list<true>(in_offsets);
+    generate_offset_list<EdgeType::OUTGOING>(out_offsets);
+    generate_offset_list<EdgeType::INCOMING>(in_offsets);
 }
 
-template<bool in_list>
+template<EdgeType edge_type>
 void Graph::generate_offset_list(std::vector<int> &offsets) {
     offsets.resize(num_nodes, -1); //TODO: in_offsets und out_offsets zusammenlegen zu [(o1,i1), (o2,i2), ..., (on,in)] ?
     int node = 0;
     int edge_idx = 0;
     while (edge_idx < num_edges && node < num_nodes) { //TODO: iterate through node list instead of node++
-        int edge_node = in_list ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
+        int edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
         if (edge_node == node) {
             offsets.at(node) = edge_idx;
             while (edge_node == node && edge_idx < num_edges - 1) {
                 edge_idx++;
-                edge_node = in_list ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
+                edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
             }
         }
         node++;

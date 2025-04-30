@@ -7,6 +7,7 @@
 #include <chrono>
 #include <optional>
 
+#include "util.h"
 #include "graph.h"
 #include "dijkstra.h"
 
@@ -75,7 +76,7 @@ std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
     std::vector<std::pair<int,int>> queries;
 
     if (file.fail()) {
-        std::cout << "Querydatei nicht gefunden\n";
+        println_error("Querydatei nicht gefunden \"" + file_path + "\"");
         return queries;
     }
 
