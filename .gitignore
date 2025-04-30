@@ -1,2 +1,7 @@
 .vscode
-build
+*/.vscode
+*/build
+*/graphs
+*/*.txt
+*/*.fmi
+!*/CMakeLists.txt
