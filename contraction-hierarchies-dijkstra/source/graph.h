@@ -24,7 +24,14 @@ struct Edge {
     int target;
     int cost;
 
-    friend std::ostream& operator<<(std::ostream& os, const Edge& dt);
+    friend std::ostream& operator<<(std::ostream& os, const Edge& e);
+};
+
+struct Node {
+    int id;
+    int level;
+
+    friend std::ostream& operator<<(std::ostream& os, const Node& n);
 };
 
 struct IndexRange {
@@ -44,9 +51,14 @@ class Graph {
     std::vector<int> in_offsets;
     std::vector<int> target_ordering;
     std::vector<Edge> edges;
+    std::vector<Node> nodes; 
+    std::vector<int> node_ordering; 
 
     template<EdgeType edge_type>
     void generate_offset_list(std::vector<int> &offsets);
+
+    void read_from_ch_file(const std::string &file_path);
+    void read_from_graph_file(const std::string &file_path);
 
 public:
     int num_nodes;
