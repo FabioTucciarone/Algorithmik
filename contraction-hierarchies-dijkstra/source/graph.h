@@ -66,8 +66,8 @@ public:
     
     Graph(const std::string &file_path);
     
-    EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node);
-    EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node);
+    EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node_id);
+    EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node_id);
 
     friend EdgeRange<EdgeType::INCOMING>;
     friend EdgeRange<EdgeType::OUTGOING>;
@@ -80,7 +80,7 @@ class EdgeRange {
     int end_idx;
 
 public:
-    class Iterator {
+    class Iterator { // TODO Warum for (Edge &e : get...) geht nicht !!
         const Graph &graph;
         int i;
 
@@ -103,13 +103,14 @@ public:
     inline Iterator begin() { return Iterator(graph, begin_idx); }
     inline Iterator end() { return Iterator(graph, end_idx); }
 
-    inline EdgeRange(const Graph &graph, const int node) : graph(graph) {
+    inline EdgeRange(const Graph &graph, const int node_id) : graph(graph) {
+        int node_idx = graph.node_ordering[node_id];
         if constexpr (edge_type == EdgeType::INCOMING) {
-            begin_idx = graph.in_offsets[node];
-            end_idx = (node == graph.num_nodes - 1) ? graph.num_edges : graph.in_offsets[node + 1];
+            begin_idx = graph.in_offsets[node_idx];
+            end_idx = (node_idx == graph.num_nodes - 1) ? graph.num_edges : graph.in_offsets[node_idx + 1];
         } else {
-            begin_idx = graph.out_offsets[node];
-            end_idx = (node == graph.num_nodes - 1) ? graph.num_edges : graph.out_offsets[node + 1];
+            begin_idx = graph.out_offsets[node_idx];
+            end_idx = (node_idx == graph.num_nodes - 1) ? graph.num_edges : graph.out_offsets[node_idx + 1];
         }
     }
 };
