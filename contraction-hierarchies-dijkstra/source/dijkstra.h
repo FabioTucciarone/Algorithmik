@@ -16,13 +16,22 @@
 
 #include "graph.h"
 
-struct DNode {
-    int idx;
-    int dist;
+struct DistancePair {
+    int s;
+    int t;
 
-    DNode(int idx, int dist);
+    DistancePair(int s, int t);
+};
+
+struct DNode {
+    int id;
+    DistancePair distance;
+    bool is_forward_search;
+
+    DNode(int id, int s_dist, int t_dist, bool is_forward_search);
     friend bool operator<(const DNode& a, const DNode& b);
 };
+
 
 
 class Dijkstra {
@@ -31,7 +40,7 @@ class Dijkstra {
     using clock = std::chrono::steady_clock;
 
     std::vector<int> touched_nodes;
-    std::vector<int> distances;
+    std::vector<DistancePair> distances;
     std::priority_queue<DNode> queue;
     Graph &graph;
     int last_start;
