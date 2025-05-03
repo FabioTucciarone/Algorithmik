@@ -47,15 +47,15 @@ std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) 
                 q.pop();
 
                 for (Edge edge : graph.get_outgoing_edges(source_node)) {
-                    if (!visited[edge.target]) {
-                        visited[edge.target] = true;
-                        q.push(edge.target);
+                    if (!visited[edge.target_id]) {
+                        visited[edge.target_id] = true;
+                        q.push(edge.target_id);
                     }
                 }
                 for (Edge edge : graph.get_incoming_edges(source_node)) {
-                    if (!visited[edge.source]) {
-                        visited[edge.source] = true;
-                        q.push(edge.source);
+                    if (!visited[edge.source_id]) {
+                        visited[edge.source_id] = true;
+                        q.push(edge.source_id);
                     }
                 }
             }
@@ -95,6 +95,9 @@ std::vector<std::pair<int,int>> read_query_file(const std::string &file_path) {
 }
 
 
+
+
+
 /// @brief [-graph filepath] [-queries filepath] [-results filepath] [-mode {components, distances, both}]
 int main(int argc, char *argv[]) {
 
@@ -108,31 +111,33 @@ int main(int argc, char *argv[]) {
     std::vector<std::pair<int,int>> queries = read_query_file(queries_path);
     
     std::cout << " > Graph einlesen:\n";
-    
-    clock::time_point start_time = clock::now();
 
     Graph graph{ graph_path };
+
+    /*
+    for (int i = 0; i < graph.num_nodes; i++) {
+        std::cout << "out(" << i << ")  = [ ";
+        for (Edge e : graph.get_outgoing_edges(i)) std::cout << e.target_id << ", ";
+        std::cout << "]\n";
+    }
+    for (int i = 0; i < graph.num_nodes; i++) {
+        std::cout << "in(" << i << ")  = [ ";
+        for (Edge e : graph.get_incoming_edges(i)) std::cout << e.source_id << ", ";
+        std::cout << "]\n";
+    }
+    */
     
-    clock::time_point end_time = clock::now();
-    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    std::cout << "   n=" << graph.num_nodes << ", m=" << graph.num_edges << " [t=" << duration << "ms]" << std::endl;
 
-    if (mode == "components" || mode == "both") {
-        std::cout << " > Berechne schwache Zusammenhangskomponenten:\n";
-        auto [components, duration] = calculate_weakly_connected_components(graph);
-        std::cout << "   n=" << components << " [t=" << duration << "ms]" << std::endl;
-    }
-    if (mode == "distances" || mode == "both") {
-        std::cout << " > Berechne Distanzen:\n";
-        std::ofstream results_file;
-        results_file.open(results_path);
+    Dijkstra d(graph);
 
-        Dijkstra dijkstra(graph);
-        for (auto [s, t] : queries) {
-            auto [distance, duration] = dijkstra.query(s, t);
-            std::cout << "   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n";
-            results_file << s << " " << t << " " << distance << " " << duration  << "\n";
-        }
-        results_file.close();
+    //std::cout << d.query(0,3).first << std::endl;
+            
+    return 0;
+    for (auto [s, t] : queries) {
+        auto [distance, duration] = d.query(s, t);
+        if (distance == std::numeric_limits<int>::max()) distance = -1;
+        std::cout << "[OUT]   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n\n";
     }
+
+
 }

@@ -2,7 +2,7 @@
 #include "util.h"
 
 std::ostream& operator<<(std::ostream& os, const Edge& e) {
-    os << "(" << e.source << ',' << e.target << ",c=" << e.cost << ")";
+    os << "(" << e.source_id << ',' << e.target_id << ",c=" << e.cost << ")";
     return os;
 }
 
@@ -53,9 +53,9 @@ void Graph::read_from_ch_file(const std::string &file_path) {
     //});
 
 
-    std::cout << "nodes = [ ";
-    for (Node n : nodes) std::cout << n << ", ";
-    std::cout << "]\n";
+    //std::cout << "nodes = [ ";
+    //for (Node n : nodes) std::cout << n << ", ";
+    //std::cout << "]\n";
 
     edges.reserve(num_edges);
     
@@ -68,15 +68,15 @@ void Graph::read_from_ch_file(const std::string &file_path) {
         const size_t end_pos = std::min(line.find('\n', skip2_pos + 1), line.find(' ', skip2_pos + 1)); // not found? npos?
         
         Edge e{};
-        std::from_chars(&line[0], &line[target_pos], e.source); // ignore errors
-        std::from_chars(&line[target_pos+1], &line[cost_pos], e.target);
+        std::from_chars(&line[0], &line[target_pos], e.source_id); // ignore errors
+        std::from_chars(&line[target_pos+1], &line[cost_pos], e.target_id);
         std::from_chars(&line[cost_pos+1], &line[end_pos], e.cost);
         
         edges.push_back(e);
     }
     file.close();
 
-    
+    /*
     std::cout << "STANDARD: \n";
     std::cout << "nodes = [ ";
     for (int i : node_ordering) std::cout << nodes[i] << ", ";
@@ -84,6 +84,7 @@ void Graph::read_from_ch_file(const std::string &file_path) {
     std::cout << "edges = [ ";
     for (Edge &e : edges) std::cout << e << ", ";
     std::cout << "]\n\n";
+    */
     
     std::sort(nodes.begin(), nodes.end(), [this] (Node &i1, Node &i2) { 
         return (i1.level > i2.level) || (i1.level == i2.level && i1.id < i2.id);
@@ -95,7 +96,7 @@ void Graph::read_from_ch_file(const std::string &file_path) {
     }
     
     std::sort(edges.begin(), edges.end(), [this] (Edge &e1, Edge &e2) { 
-        return (node_ordering[e1.source] < node_ordering[e2.source]) || (e1.source == e2.source && node_ordering[e1.target] < node_ordering[e2.target]);
+        return (node_ordering[e1.source_id] < node_ordering[e2.source_id]) || (e1.source_id == e2.source_id && node_ordering[e1.target_id] < node_ordering[e2.target_id]);
     });
     
     /*
@@ -115,7 +116,7 @@ void Graph::read_from_ch_file(const std::string &file_path) {
     target_ordering.resize(num_edges);
     std::iota(target_ordering.begin(), target_ordering.end(), 0);
     std::stable_sort(target_ordering.begin(), target_ordering.end(), [this] (size_t i1, size_t i2) { 
-        return (node_ordering[edges[i1].target] < node_ordering[edges[i2].target]) || (edges[i1].target == edges[i2].target && node_ordering[edges[i2].source] < node_ordering[edges[i2].source]);
+        return (node_ordering[edges[i1].target_id] < node_ordering[edges[i2].target_id]) || (edges[i1].target_id == edges[i2].target_id && node_ordering[edges[i2].source_id] < node_ordering[edges[i2].source_id]);
     });
 
     generate_offset_list<EdgeType::OUTGOING>(out_offsets);
@@ -160,14 +161,20 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     
     edges.reserve(num_edges);
     
+    nodes.resize(num_nodes);
+    for(int i = 0; i < num_nodes; i++) {
+        nodes[i].id = i;
+        nodes[i].level = 0;
+    }
+    
     while (std::getline(file, line)) {
         const size_t pos1 = line.find(' ', 0);
         const size_t pos2 = line.find(' ', pos1 + 1);
         const size_t pos3 = std::min(line.find('\n', pos2 + 1), line.find(' ', pos2 + 1)); // not found? npos?
         
         Edge e{};
-        std::from_chars(&line[0], &line[pos1], e.source); // ignore errors
-        std::from_chars(&line[pos1+1], &line[pos2], e.target);
+        std::from_chars(&line[0], &line[pos1], e.source_id); // ignore errors
+        std::from_chars(&line[pos1+1], &line[pos2], e.target_id);
         std::from_chars(&line[pos2+1], &line[pos3], e.cost);
         
         edges.push_back(e);
@@ -177,7 +184,7 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     target_ordering.resize(num_edges);
     std::iota(target_ordering.begin(), target_ordering.end(), 0);
     std::stable_sort(target_ordering.begin(), target_ordering.end(), [this](size_t i1, size_t i2) { 
-        return edges[i1].target < edges[i2].target || (edges[i1].target == edges[i2].target && edges[i1].source < edges[i2].source); 
+        return edges[i1].target_id < edges[i2].target_id || (edges[i1].target_id == edges[i2].target_id && edges[i1].source_id < edges[i2].source_id); 
     }); //TODO: drüber nachdenken
     
     generate_offset_list<EdgeType::OUTGOING>(out_offsets);
@@ -190,11 +197,29 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     std::cout << "]\ntarget order = [ ";
     for (int i : target_ordering) std::cout << i << ", ";
     std::cout << " ]\n";
+
+    // CH BAUEN:::::
+
+
+
+    // find independent set:
+
+    /*
+    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
+        if (contracted[node_idx] || adjacent[node_idx]) continue;
+        independent_set.push(node_idx);
+
+        for (Edge edge : get_outgoing_edges()) {
+
+        }
+    }
+    */
+
 }
 
 
 Graph::Graph(const std::string &file_path) {
-    read_from_ch_file(file_path);
+    read_from_graph_file(file_path);
 }
 
 template<EdgeType edge_type>
@@ -204,12 +229,12 @@ void Graph::generate_offset_list(std::vector<int> &offsets) {
     int edge_idx = 0;
     while (edge_idx < num_edges && node_idx < num_nodes) { //TODO: iterate through node list instead of node++
         Node node = nodes[node_idx];
-        int edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
+        int edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target_id : edges[edge_idx].source_id;
         if (edge_node == node.id) {
             offsets.at(node_idx) = edge_idx;
             while (edge_node == node.id && edge_idx < num_edges - 1) {
                 edge_idx++;
-                edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target : edges[edge_idx].source;
+                edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target_id : edges[edge_idx].source_id;
             }
         }
         node_idx++;
@@ -231,4 +256,8 @@ EdgeRange<EdgeType::OUTGOING> Graph::get_outgoing_edges(int node_id) {
 
 EdgeRange<EdgeType::INCOMING> Graph::get_incoming_edges(int node_id) {
     return {*this, node_id};
+}
+
+int Graph::get_level(int node_id) {
+    return nodes[node_ordering[node_id]].level;
 }

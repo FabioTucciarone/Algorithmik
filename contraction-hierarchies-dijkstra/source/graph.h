@@ -20,8 +20,8 @@ enum EdgeType {
 }; 
 
 struct Edge {
-    int source;
-    int target;
+    int source_id;
+    int target_id;
     int cost;
 
     friend std::ostream& operator<<(std::ostream& os, const Edge& e);
@@ -68,6 +68,10 @@ public:
     
     EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node_id);
     EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node_id);
+
+    int get_level(int node_id);
+
+    void greedy_find_independent_set();
 
     friend EdgeRange<EdgeType::INCOMING>;
     friend EdgeRange<EdgeType::OUTGOING>;
