@@ -1,12 +1,12 @@
 #include "dijkstra.h"
 
-DNode::DNode(int id, int s_dist, int t_dist, bool is_forward_search) : id(id), distance({s_dist, t_dist}), is_forward_search(is_forward_search) {}
+DNode::DNode(int idx, int s_dist, int t_dist, bool is_forward_search) : idx(idx), distance({s_dist, t_dist}), is_forward_search(is_forward_search) {}
 
-DistancePair::DistancePair(int s, int t) : s(s), t(t) {};
+DistancePair::DistancePair(int s, int t) : forward(s), backward(t) {};
 
 
 bool settled(const DNode &node) {
-    return node.distance.s < std::numeric_limits<int>::max() && node.distance.t < std::numeric_limits<int>::max();
+    return node.distance.forward < std::numeric_limits<int>::max() && node.distance.backward < std::numeric_limits<int>::max();
 }
 
 // a > b
@@ -17,7 +17,7 @@ bool operator<(const DNode& a, const DNode& b) {
     bool b_setteled = settled(b);
 
     if (a_setteled && b_setteled) {
-        return a.distance.s + a.distance.t > b.distance.s + b.distance.t;
+        return a.distance.forward + a.distance.backward > b.distance.forward + b.distance.backward;
     } 
     else if (!a_setteled && b_setteled) {
         return  false;
@@ -26,8 +26,8 @@ bool operator<(const DNode& a, const DNode& b) {
         return true;
     }
     else {
-        const int a_d = a.is_forward_search ? a.distance.s : a.distance.t;
-        const int b_d = b.is_forward_search ? b.distance.s : b.distance.t;
+        const int a_d = a.is_forward_search ? a.distance.forward : a.distance.backward;
+        const int b_d = b.is_forward_search ? b.distance.forward : b.distance.backward;
         return a_d > b_d;
     }
 }
@@ -37,7 +37,35 @@ Dijkstra::Dijkstra(Graph &graph) : graph(graph), last_start(-1) {
     distances.resize(graph.num_nodes, DistancePair(max, max));
 }
 
-std::pair<int, int64_t> Dijkstra::query(int start, int target) {
+
+bool Dijkstra::should_stall_forward(int node_idx) {
+    for (Edge edge : graph.get_incoming_edges(node_idx)) {
+        if (graph.get_level(edge.source_idx) > graph.get_level(node_idx)) {
+            if (distances[edge.source_idx].forward < std::numeric_limits<int>::max() && distances[node_idx].forward > distances[edge.source_idx].forward + edge.cost) {
+                return true;
+            }
+                        
+        }
+    }
+    return false;
+}
+
+bool Dijkstra::should_stall_backward(int node_idx) {
+    for (Edge edge : graph.get_outgoing_edges(node_idx)) {
+        if (graph.get_level(edge.target_idx) > graph.get_level(node_idx)) {
+            if (distances[edge.target_idx].backward < std::numeric_limits<int>::max() && distances[node_idx].backward > distances[edge.target_idx].backward + edge.cost) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+std::pair<int, int64_t> Dijkstra::query(int start_id, int target_id) {
+
+    int start = graph.get_node_index(start_id);
+    int target = graph.get_node_index(target_id);
 
     if (start >= graph.num_nodes || target >= graph.num_nodes) {
         return { std::numeric_limits<int>::max(), 0 };
@@ -47,8 +75,8 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
 
     if(true) { // Nachdenken
         for (int node : touched_nodes) {
-            distances[node].s = std::numeric_limits<int>::max();
-            distances[node].t = std::numeric_limits<int>::max();
+            distances[node].forward = std::numeric_limits<int>::max();
+            distances[node].backward = std::numeric_limits<int>::max();
         }
         touched_nodes.clear();
         queue = std::priority_queue<DNode>();
@@ -56,59 +84,56 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
         queue.emplace(target, std::numeric_limits<int>::max(), 0, false);
         touched_nodes.push_back(start);
         touched_nodes.push_back(target);
-        distances[start].s = 0;
-        distances[target].t = 0;
+        distances[start].forward = 0;
+        distances[target].backward = 0;
         last_start = start;
     }
 
     int shortest_path = std::numeric_limits<int>::max();
 
-    for (int i = 0; i < graph.num_nodes; i++) {         
+    while(!queue.empty()) {         
         DNode node = queue.top();
         queue.pop();
 
-        // std::cout << "pop: " << node.id << " (" << node.distance.s << "," << node.distance.t << "," << (node.is_forward_search ? "out" : "in") << ")";
-
         if (settled(node)) {
-            if (shortest_path >= node.distance.s + node.distance.t) {
-                shortest_path = node.distance.s + node.distance.t;
-                // std::cout << " -> settled";
+            if (shortest_path >= node.distance.forward + node.distance.backward) {
+                shortest_path = node.distance.forward + node.distance.backward;
             } else {
-                // std::cout << "\n";
                 break; // FERTIG
             }
         }
-        // std::cout << "\n";
 
         if (node.is_forward_search) {
-            if (node.distance.s == distances[node.id].s) {
-                for (Edge edge : graph.get_outgoing_edges(node.id)) {
-                    // std::cout << "  > " << edge << ", level: " << graph.get_level(edge.source_id) << " " << graph.get_level(edge.target_id) << "\n";
-                    if (graph.get_level(edge.target_id) < graph.get_level(edge.source_id)) {
+            if (node.distance.forward == distances[node.idx].forward) {
+                
+                if (should_stall_forward(node.idx)) continue;
+
+                for (const Edge &edge : graph.get_outgoing_edges(node.idx)) {
+                    if (graph.get_level(edge.target_idx) < graph.get_level(edge.source_idx)) {
                         break;
                     }
-                    if (distances[edge.target_id].s > distances[node.id].s + edge.cost) {
-                        // std::cout << "    d(" << edge.target_id << ") = d(" << node.id << ") + " << edge.cost << " = " << distances[node.id].s + edge.cost << "\n";
-                        distances[edge.target_id].s = distances[node.id].s + edge.cost;
-                        touched_nodes.push_back(edge.target_id);
-                        // std::cout << "    push: " << edge.target_id << "(" <<  distances[edge.target_id].s << "," << distances[edge.target_id].t << ",out)\n";
-                        queue.emplace(edge.target_id, distances[edge.target_id].s, distances[edge.target_id].t, true);
+                    const int alternative_distance = distances[node.idx].forward + edge.cost;
+                    if (distances[edge.target_idx].forward > alternative_distance) {
+                        distances[edge.target_idx].forward = alternative_distance;
+                        touched_nodes.push_back(edge.target_idx);
+                        queue.emplace(edge.target_idx, distances[edge.target_idx].forward, distances[edge.target_idx].backward, true);
                     }
                 }
             }
         } else {
-            if (node.distance.t == distances[node.id].t) {
-                for (Edge edge : graph.get_incoming_edges(node.id)) {
-                    // std::cout << "  > " << edge << ", level: " << graph.get_level(edge.source_id) << " " << graph.get_level(edge.target_id) << "\n";
-                    if (graph.get_level(edge.source_id) < graph.get_level(edge.target_id)) {
+            if (node.distance.backward == distances[node.idx].backward) {
+
+                if (should_stall_backward(node.idx)) continue;
+
+                for (const Edge &edge : graph.get_incoming_edges(node.idx)) {
+                    if (graph.get_level(edge.source_idx) < graph.get_level(edge.target_idx)) {
                         break;
                     }
-                    if (distances[edge.source_id].t > distances[node.id].t + edge.cost) {
-                        // std::cout << "    d(" << edge.source_id << ") = d(" << node.id << ") + " << edge.cost << " = " << distances[node.id].t + edge.cost << "\n";
-                        distances[edge.source_id].t = distances[node.id].t + edge.cost;
-                        touched_nodes.push_back(edge.source_id);
-                        // std::cout << "    push: " << edge.source_id << "(" <<  distances[edge.target_id].s << "," << distances[edge.source_id].t << ",in)\n";
-                        queue.emplace(edge.source_id, distances[edge.source_id].s, distances[edge.source_id].t, false);
+                    const int alternative_distance = distances[node.idx].backward + edge.cost;
+                    if (distances[edge.source_idx].backward > alternative_distance) {
+                        distances[edge.source_idx].backward = alternative_distance;
+                        touched_nodes.push_back(edge.source_idx);
+                        queue.emplace(edge.source_idx, distances[edge.source_idx].forward, distances[edge.source_idx].backward, false);
                     }
                 }
             }

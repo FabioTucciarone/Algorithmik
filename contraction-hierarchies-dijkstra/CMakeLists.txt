@@ -19,6 +19,6 @@ SET(CMAKE_CXX_FLAGS "-O3")
 message(STATUS "PROJECT_NAME=${PROJECT_NAME}")
 message(STATUS "CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}")
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${PROJECT_NAME} -graph ../graph.fmi -queries ../queries.txt -results ../results.txt
-)
+# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#     COMMAND ${PROJECT_NAME} -graph ../graph.fmi -queries ../queries.txt -results ../results.txt
+# )

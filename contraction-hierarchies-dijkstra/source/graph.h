@@ -20,8 +20,8 @@ enum EdgeType {
 }; 
 
 struct Edge {
-    int source_id;
-    int target_id;
+    int source_idx;
+    int target_idx;
     int cost;
 
     friend std::ostream& operator<<(std::ostream& os, const Edge& e);
@@ -60,18 +60,25 @@ class Graph {
     void read_from_ch_file(const std::string &file_path);
     void read_from_graph_file(const std::string &file_path);
 
+    void permute_graph();
+    void build_graph_representation();
+
+    void greedy_find_independent_set();
+    
+    std::vector<int> permute_graph(std::vector<Edge> &edges, std::vector<Node> &node_levels);
+
 public:
     int num_nodes;
     int num_edges;
     
     Graph(const std::string &file_path);
     
-    EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node_id);
-    EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node_id);
+    EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node_idx);
+    EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node_idx);
 
-    int get_level(int node_id);
-
-    void greedy_find_independent_set();
+    int get_level(int node_idx);
+    int get_node_index(int node_id);
+    int get_node_id(int node_idx);
 
     friend EdgeRange<EdgeType::INCOMING>;
     friend EdgeRange<EdgeType::OUTGOING>;
@@ -107,8 +114,11 @@ public:
     inline Iterator begin() { return Iterator(graph, begin_idx); }
     inline Iterator end() { return Iterator(graph, end_idx); }
 
-    inline EdgeRange(const Graph &graph, const int node_id) : graph(graph) {
-        int node_idx = graph.node_ordering[node_id];
+    int size() {
+        return end_idx - begin_idx;
+    }
+
+    inline EdgeRange(const Graph &graph, const int node_idx) : graph(graph) {
         if constexpr (edge_type == EdgeType::INCOMING) {
             begin_idx = graph.in_offsets[node_idx];
             end_idx = (node_idx == graph.num_nodes - 1) ? graph.num_edges : graph.in_offsets[node_idx + 1];

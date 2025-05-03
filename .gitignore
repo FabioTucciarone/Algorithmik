@@ -2,6 +2,7 @@
 */.vscode
 */build
 */graphs
+*/tests
 */*.txt
 */*.fmi
 !*/CMakeLists.txt

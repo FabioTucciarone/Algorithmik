@@ -47,15 +47,15 @@ std::pair<int32_t, int64_t> calculate_weakly_connected_components(Graph &graph) 
                 q.pop();
 
                 for (Edge edge : graph.get_outgoing_edges(source_node)) {
-                    if (!visited[edge.target_id]) {
-                        visited[edge.target_id] = true;
-                        q.push(edge.target_id);
+                    if (!visited[edge.target_idx]) {
+                        visited[edge.target_idx] = true;
+                        q.push(edge.target_idx);
                     }
                 }
                 for (Edge edge : graph.get_incoming_edges(source_node)) {
-                    if (!visited[edge.source_id]) {
-                        visited[edge.source_id] = true;
-                        q.push(edge.source_id);
+                    if (!visited[edge.source_idx]) {
+                        visited[edge.source_idx] = true;
+                        q.push(edge.source_idx);
                     }
                 }
             }
@@ -114,29 +114,17 @@ int main(int argc, char *argv[]) {
 
     Graph graph{ graph_path };
 
-    /*
-    for (int i = 0; i < graph.num_nodes; i++) {
-        std::cout << "out(" << i << ")  = [ ";
-        for (Edge e : graph.get_outgoing_edges(i)) std::cout << e.target_id << ", ";
-        std::cout << "]\n";
-    }
-    for (int i = 0; i < graph.num_nodes; i++) {
-        std::cout << "in(" << i << ")  = [ ";
-        for (Edge e : graph.get_incoming_edges(i)) std::cout << e.source_id << ", ";
-        std::cout << "]\n";
-    }
-    */
+    std::cout << " > Dijkstra:\n";
     
 
     Dijkstra d(graph);
 
-    //std::cout << d.query(0,3).first << std::endl;
-            
-    return 0;
+    std::cout << " > Queries:\n";
+
     for (auto [s, t] : queries) {
         auto [distance, duration] = d.query(s, t);
         if (distance == std::numeric_limits<int>::max()) distance = -1;
-        std::cout << "[OUT]   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n\n";
+        std::cout << "[OUT]   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n";
     }
 
 
