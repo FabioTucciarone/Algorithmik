@@ -1,6 +1,5 @@
 #include "graph.h"
 #include "util.h"
-
 #include "math.h"
 
 std::ostream& operator<<(std::ostream& os, const Edge& e) {
@@ -13,15 +12,16 @@ std::ostream& operator<<(std::ostream& os, const Node& n) {
     return os;
 }
 
-void  Graph::permute_graph() {
+bool operator<(const Edge& edge_1, const Edge& edge_2) {
+    return edge_1.source_idx < edge_2.source_idx || (edge_1.source_idx == edge_2.source_idx && edge_1.target_idx < edge_2.target_idx);
+}
 
-    std::cout << "w\n";
+
+void  Graph::permute_graph() {
 
     std::sort(nodes.begin(), nodes.end(), [this] (Node &i1, Node &i2) { 
         return (i1.level > i2.level) || (i1.level == i2.level && i1.id < i2.id);
     });
-
-    std::cout << "x\n";
 
     node_ordering.resize(num_nodes);
     node_ordering.resize(nodes.size());
@@ -29,14 +29,10 @@ void  Graph::permute_graph() {
         node_ordering[nodes[i].id] = i;
     }
 
-    std::cout << "y\n";
-
     for (Edge &edge : edges) {
         edge.source_idx = node_ordering[edge.source_idx];
         edge.target_idx = node_ordering[edge.target_idx];
     }
-
-    std::cout << "z\n";
 
     std::sort(edges.begin(), edges.end(), [this] (Edge &e1, Edge &e2) { 
         return (e1.source_idx < e2.source_idx) || (e1.source_idx == e2.source_idx && e1.target_idx < e2.target_idx);
@@ -82,6 +78,7 @@ void Graph::generate_offset_list(std::vector<int> &offsets) {
 
 void Graph::build_graph_representation() {
     
+    num_edges = edges.size();
     target_ordering.clear();
     target_ordering.resize(num_edges);
 
@@ -90,7 +87,6 @@ void Graph::build_graph_representation() {
         return (edges[i1].target_idx < edges[i2].target_idx) || (edges[i1].target_idx == edges[i2].target_idx && edges[i2].source_idx < edges[i2].source_idx);
     });
 
-    
     generate_offset_list<EdgeType::OUTGOING>(out_offsets);
     generate_offset_list<EdgeType::INCOMING>(in_offsets);
 }
@@ -150,6 +146,60 @@ void Graph::read_from_ch_file(const std::string &file_path) {
     build_graph_representation();
 }
 
+
+std::vector<int> Graph::find_independent_set(std::vector<bool> &contracted) {
+    std::vector<bool> adjacent(num_nodes, false); // REALLOC 
+    std::vector<int> independent_set; // REALLOC; init?
+
+    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
+        if (contracted[node_idx] || adjacent[node_idx]) continue;
+
+        independent_set.push_back(node_idx);
+        for (const Edge &edge : get_outgoing_edges(node_idx)) {
+            adjacent[edge.target_idx] = true;
+        }
+        for (const Edge &edge : get_incoming_edges(node_idx)) {
+            adjacent[edge.source_idx] = true;
+        }
+    }
+    return independent_set;
+}
+
+std::vector<int> Graph::partition_independent_set(int num_partitions, std::vector<int> &independent_set, std::vector<int> &edge_differences, std::vector<bool> &contracted) {
+
+    // CONTRACT INDEPENDENT SET:
+    for (int node_idx : independent_set) {
+        // SIM-CONTRACT NODE
+        edge_differences[node_idx] = 0;
+
+        for (Edge in_edge : get_incoming_edges(node_idx)) { // approximate with in_deg * out_deg - deg?
+            for (Edge out_edge : get_outgoing_edges(node_idx)) {
+                if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx && !contracted[out_edge.target_idx] && !contracted[in_edge.source_idx]) {
+                    edge_differences[node_idx]++;
+                } 
+            }
+        }
+        EdgeRange incoming = get_incoming_edges(node_idx);
+        EdgeRange outgoing = get_incoming_edges(node_idx);
+        edge_differences[node_idx] -= (incoming.size() + outgoing.size()); // eins zu klein falls schleife existiert (wird zwei mal abgezogen)
+    }
+
+    //std::cout << "\nindependent_set = { ";
+    //for (int i = 0; i < independent_set.size(); i++) std::cout << "[" << independent_set[i] << ", " << edge_differences[independent_set[i]] << "] ";
+    //std::cout << "}\n";
+
+    int partition_size = independent_set.size() / num_partitions;
+    std::vector<int> partitions(num_partitions + 1, 0);
+    for (int p = 1; p < num_partitions; p++) {
+        partitions[p] = p * partition_size + partitions[p - 1];
+    }
+    partitions[num_partitions] = independent_set.size();
+
+    return partitions;
+}
+
+
+
 void Graph::read_from_graph_file(const std::string &file_path) {
 
     std::ifstream file(file_path);
@@ -174,15 +224,12 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     
     edges.reserve(num_edges);
     
-    // KAKA:
     nodes.resize(num_nodes);
     for(int i = 0; i < num_nodes; i++) {
         nodes[i].id = i;
         nodes[i].level = 0;
     }
-    node_ordering.resize(num_nodes);
-    std::iota(node_ordering.begin(), node_ordering.end(), 0);
-    
+
     while (std::getline(file, line)) {
         const size_t pos1 = line.find(' ', 0);
         const size_t pos2 = line.find(' ', pos1 + 1);
@@ -197,143 +244,112 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     }
     file.close();
 
-    target_ordering.resize(num_edges);
-    std::iota(target_ordering.begin(), target_ordering.end(), 0);
-    std::stable_sort(target_ordering.begin(), target_ordering.end(), [this](size_t i1, size_t i2) { 
-        return edges[i1].target_idx < edges[i2].target_idx || (edges[i1].target_idx == edges[i2].target_idx && edges[i1].source_idx < edges[i2].source_idx); 
-    }); //TODO: drüber nachdenken
-    
-    generate_offset_list<EdgeType::OUTGOING>(out_offsets);
-    generate_offset_list<EdgeType::INCOMING>(in_offsets);
+    build_graph_representation();
 
-    std::cout << "out offsets  = [ ";
-    for (int i : out_offsets) std::cout << i << ", ";
-    std::cout << "]\nin offsets   = [ ";
-    for (int i : in_offsets) std::cout << i << ", ";
-    std::cout << "]\ntarget order = [ ";
-    for (int i : target_ordering) std::cout << i << ", ";
-    std::cout << " ]\n\n";
+    std::cout << "\nBuilding CH:\n";
+
+    //std::vector<Shortcut> shortcut_info;
+    //shortcut_info.reserve(num_edges);
+    //for (int id = 0; id < num_edges; id++) {
+    //    shortcut_info.emplace_back(id, -1, -1);
+    //}
 
     // CH BAUEN:::::
+    int level_counter = 0;
+    int num_uncontracted = num_nodes;
 
-
-
-    // FIND INDEPENDENT SET:
     std::vector<bool> contracted(num_nodes, false);
-    std::vector<bool> adjacent(num_nodes, false);
-    std::vector<int> independent_set; // init?
-    std::vector<int> level(num_nodes, 0);
+    std::vector<int> edge_differences(num_nodes, 0); // REALLOC 
 
-    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
-        if (contracted[node_idx] || adjacent[node_idx]) continue;
+    while (num_uncontracted > 0) {
+        // FIND INDEPENDENT SET:
 
-        independent_set.push_back(node_idx);
-        for (Edge edge : get_outgoing_edges(node_idx)) {
-            adjacent[edge.target_idx] = true;
-        }
-        for (Edge edge : get_incoming_edges(node_idx)) {
-            adjacent[edge.source_idx] = true;
-        }
-    }
+        //std::cout << "\n\x1B[31m[ITERATION: " << level_counter << "]\033[0m \n";
 
-    std::vector<int> edge_differences(num_nodes, 0);
-    
-    // CONTRACT INDEPENDENT SET:
-    for (int node_idx : independent_set) {
-        // SIM-CONTRACT NODE
-        std::cout << node_idx << ":\n";
-        edge_differences[node_idx] = 0;
-        std::cout << "incoming = [ ";
-        for (Edge in_edge : get_incoming_edges(node_idx)) std::cout << in_edge << ", ";
-        std::cout << " ]\n";
-        std::cout << "outgoing = [ ";
-        for (Edge out_edge : get_outgoing_edges(node_idx)) std::cout << out_edge << ", ";
-        std::cout << " ]\n";
-        for (Edge in_edge : get_incoming_edges(node_idx)) { // approximate with in_deg * out_deg - deg?
-            for (Edge out_edge : get_outgoing_edges(node_idx)) {
-                if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx && !contracted[out_edge.target_idx] && !contracted[in_edge.source_idx]) {
-                    std::cout << " > [+] " << in_edge.source_idx << "-" << node_idx << "-" << out_edge.target_idx << "\n";
-                    edge_differences[node_idx]++;
-                } else {
-                    std::cout << " > [0] " << in_edge.source_idx << "-" << node_idx << "-" << out_edge.target_idx << "\n";
-                }
-            }
-        }
-        EdgeRange incoming = get_incoming_edges(node_idx);
-        EdgeRange outgoing = get_incoming_edges(node_idx);
-        std::cout << " > " << "ED("<<node_idx<<") = " << edge_differences[node_idx] << "-" << (incoming.size() + outgoing.size()) <<"\n";
-        edge_differences[node_idx] -= (incoming.size() + outgoing.size()); // eins zu klein falls schleife existiert (wird zwei mal abgezogen)
-    }
+        int num_partitions = 4; //TODO: sinnvoll berechnen
+        std::vector<int> independent_set = find_independent_set(contracted); // TODO: reallocates two arrays every time...
+        std::vector<int> partitions = partition_independent_set(num_partitions, independent_set, edge_differences, contracted);
 
-    std::cout << "independent_set = [ ";
-    for (int i : independent_set) std::cout << i << ", ";
-    std::cout << " ]\n";
-    std::cout << "edge_differences = [ ";
-    for (int i : edge_differences) std::cout << i << ", ";
-    std::cout << " ]\n";
+        std::vector<std::vector<Edge>> shortcut_collection(num_partitions, std::vector<Edge>());
 
-    // 8 KERN TEIL
+        //#pragma omp parallel for shared(contracted, edge_differences, nodes, partitions, independent_set, shortcut_collection)
+        for (int p = 0; p < num_partitions; p++) {
+            
+            auto iter = independent_set.begin();
+            auto start = iter + partitions[p];
+            auto end   = iter + partitions[p + 1];
 
-    int num_partitions = 2;
-    int partition_size = independent_set.size() / num_partitions;
-    auto iter = independent_set.begin();
-    int partitions[num_partitions + 1];
+            std::stable_sort(start, end, [&](size_t i1, size_t i2) { 
+                return edge_differences[i1] < edge_differences[i2]; 
+            });
+            
+            //std::cout << "\npartition[" << p << "] = { ";
+            //for (int i = partitions[p]; i < partitions[p + 1]; i++) std::cout << "[" << independent_set[i] << ", " << edge_differences[independent_set[i]] << "] ";
+            //std::cout << "}\n";
 
-    partitions[0] = 0;
-    for (int p = 1; p < num_partitions; p++) {
-        partitions[p] = p * partition_size + partitions[p - 1];
-    }
-    partitions[num_partitions] = independent_set.size();
+            Dijkstra dijkstra(*this);
+        
+            int num_to_contract = std::ceil(0.75 * (partitions[p + 1] - partitions[p]));
 
-    std::cout << "partitions = [ ";
-    for (int i : partitions) std::cout << i << ", ";
-    std::cout << " ]\n";
+            for (int i = partitions[p]; i < partitions[p] + num_to_contract; i++) {
+                int node_idx = independent_set[i];
 
-    for (int p = 0; p < num_partitions; p++) {
-        auto start = iter + partitions[p];
-        auto end   = iter + partitions[p + 1];
+                //std::cout << "   contracting: " << node_idx << " (l=" << level_counter << "), shortcuts:\n";
 
-        std::cout << "partition  ("<<p<<") = [ ";
-        for (int i = partitions[p]; i < partitions[p + 1]; i++) std::cout << independent_set[i] << ", ";
-        std::cout << " ]\n";
+                nodes[node_idx].level = level_counter;
+                for (const Edge &in_edge : get_incoming_edges(node_idx)) {
+                    for (const Edge &out_edge : get_outgoing_edges(node_idx)) {
+                        //std::cout << "   ?1\n";
+                        if (contracted[out_edge.target_idx] || contracted[in_edge.source_idx]) continue;
 
-        std::stable_sort(start, end, [&](size_t i1, size_t i2) { 
-            return edge_differences[i1] < edge_differences[i2]; 
-        });
-
-        // ADD SHORTCUT EDGES
-
-        int num_to_contract = std::ceil(0.75 * (partitions[p + 1] - partitions[p]));
-        for (int i = partitions[p]; i < partitions[p] + num_to_contract; i++) {
-            // contract node (find shortcuts)
-            int node_idx = independent_set[i];
-            for (Edge in_edge : get_incoming_edges(node_idx)) { // approximate with in_deg * out_deg - deg?
-                for (Edge out_edge : get_outgoing_edges(node_idx)) {
-                    if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx && !contracted[out_edge.target_idx] && !contracted[in_edge.source_idx]) {
-                        Edge shortcut {in_edge.source_idx, out_edge.target_idx, in_edge.cost + out_edge.cost};
-
-                        //TODO:::::
+                        if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx) {
+                            
+                            int direct_distance = in_edge.cost + out_edge.cost;
+                            int shortest_distance = dijkstra.get_shortest_contraction_distance(in_edge.source_idx, out_edge.target_idx, contracted);
+                            
+                            Edge shortcut {in_edge.source_idx, out_edge.target_idx, in_edge.cost + out_edge.cost};
+                            //std::cout << shortcut << " ";
+                            if (shortest_distance >= direct_distance) { 
+                                shortcut_collection[p].push_back(shortcut);
+                            }
+                        }
                     }
                 }
+                //std::cout << "\n";
             }
+        }
+
+        level_counter++;
+
+        for (int node_idx : independent_set) {
             contracted[node_idx] = true;
         }
+        for (std::vector<Edge> &shortcuts : shortcut_collection) { // TODO: achtung hinundherkopiererei
+            for (Edge &shortcut : shortcuts) {
+                edges.push_back(shortcut);
+                //shortcut_info.push_back(num_edges + num_shortcuts_added, )
+            }
+        }
+        
+        std::sort(edges.begin(), edges.end());
+        //std::stable_sort(shortcut_info.begin(), shortcut_info.end(), [this](size_t i1, size_t i2) {return edges[i1] < edges[i2];});
+
+        build_graph_representation();
+
+        num_uncontracted -= independent_set.size();
     }
-
-    std::cout << "(sorted) independent_set = [ ";
-    for (int i : independent_set) std::cout << i << ", ";
-    std::cout << " ]\n";
-    std::cout << "                           [ ";
-    for (int i = 0; i < independent_set.size(); i++) std::cout << edge_differences[independent_set[i]] << ", ";
-    std::cout << " ]\n";
-
     
+    permute_graph();
+
+    std::cout << "\n\x1B[31m[RESULT]\033[0m all edges: {\n";
+    for (Edge &e : edges) std::cout << "  (" << get_node_id(e.source_idx) << "," << get_node_id(e.target_idx) << ") " << level_of(e.source_idx) << " " << level_of(e.target_idx) << "\n";
+    std::cout << "}\n";
 
 }
 
 
 Graph::Graph(const std::string &file_path) {
-    read_from_ch_file(file_path);
+    read_from_graph_file(file_path);
 }
 
 
@@ -345,6 +361,6 @@ EdgeRange<EdgeType::INCOMING> Graph::get_incoming_edges(int node_idx) {
     return {*this, node_idx};
 }
 
-int Graph::get_level(int node_idx) {
+int Graph::level_of(int node_idx) {
     return nodes[node_idx].level;
 }

@@ -16,12 +16,12 @@
 
 #include "graph.h"
 
-struct DNode {
+struct SearchTriple {
     int idx;
     int dist;
 
-    DNode(int idx, int dist);
-    friend bool operator<(const DNode& a, const DNode& b);
+    SearchTriple(int idx, int dist);
+    friend bool operator<(const SearchTriple& a, const SearchTriple& b);
 };
 
 
@@ -32,7 +32,7 @@ class Dijkstra {
 
     std::vector<int> touched_nodes;
     std::vector<int> distances;
-    std::priority_queue<DNode> queue;
+    std::priority_queue<SearchTriple> queue;
     Graph &graph;
     int last_start;
     

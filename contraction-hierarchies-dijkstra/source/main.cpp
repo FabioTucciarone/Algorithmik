@@ -109,17 +109,10 @@ int main(int argc, char *argv[]) {
     std::string mode         = get_cmd_argument(argc, argv, "-mode").value_or("both");
 
     std::vector<std::pair<int,int>> queries = read_query_file(queries_path);
-    
-    std::cout << " > Graph einlesen:\n";
 
     Graph graph{ graph_path };
-
-    std::cout << " > Dijkstra:\n";
     
-
     Dijkstra d(graph);
-
-    std::cout << " > Queries:\n";
 
     for (auto [s, t] : queries) {
         auto [distance, duration] = d.query(s, t);

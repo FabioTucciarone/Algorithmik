@@ -1,8 +1,8 @@
 #include "dijkstra.h"
 
-DNode::DNode(int idx, int dist) : idx(idx), dist(dist) {}
+SearchTriple::SearchTriple(int idx, int dist) : idx(idx), dist(dist) {}
 
-bool operator<(const DNode& a, const DNode& b) {
+bool operator<(const SearchTriple& a, const SearchTriple& b) {
     return a.dist > b.dist;
 }
 
@@ -22,14 +22,14 @@ std::pair<int, int64_t> Dijkstra::query(int start, int target) {
         for (int node : touched_nodes) {
             distances[node] = std::numeric_limits<int>::max();
         }
-        queue = std::priority_queue<DNode>();
+        queue = std::priority_queue<SearchTriple>();
         queue.emplace(start, 0);
         distances[start] = 0;
         last_start = start;
     }
 
     for (int i = 0; i < graph.num_nodes; i++) {         
-        DNode node = queue.top();
+        SearchTriple node = queue.top();
         queue.pop();
         if (node.dist == distances[node.idx]) {
             for (Edge edge : graph.get_outgoing_edges(node.idx)) {

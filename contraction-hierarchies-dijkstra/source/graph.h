@@ -13,6 +13,9 @@
 #include <queue>
 #include <tuple>
 #include <chrono>
+#include <omp.h>
+
+#include "dijkstra.h"
 
 enum EdgeType {
     INCOMING,
@@ -25,7 +28,15 @@ struct Edge {
     int cost;
 
     friend std::ostream& operator<<(std::ostream& os, const Edge& e);
+    friend bool operator<(const Edge& edge_1, const Edge& edge_2);
 };
+
+struct Shortcut {
+    int id;
+    int first_edge_id;
+    int second_edge_id;
+};
+
 
 struct Node {
     int id;
@@ -63,7 +74,8 @@ class Graph {
     void permute_graph();
     void build_graph_representation();
 
-    void greedy_find_independent_set();
+    std::vector<int> find_independent_set(std::vector<bool> &contracted);
+    std::vector<int> partition_independent_set(int num_partitions, std::vector<int> &independent_set, std::vector<int> &edge_differences, std::vector<bool> &contracted);
     
     std::vector<int> permute_graph(std::vector<Edge> &edges, std::vector<Node> &node_levels);
 
@@ -76,7 +88,7 @@ public:
     EdgeRange<EdgeType::INCOMING> get_incoming_edges(int node_idx);
     EdgeRange<EdgeType::OUTGOING> get_outgoing_edges(int node_idx);
 
-    int get_level(int node_idx);
+    int level_of(int node_idx);
     int get_node_index(int node_id);
     int get_node_id(int node_idx);
 

@@ -13,23 +13,28 @@
 #include <queue>
 #include <tuple>
 #include <chrono>
+#include <omp.h>
 
 #include "graph.h"
 
-struct DistancePair {
-    int forward;
-    int backward;
+class Graph;
 
-    DistancePair(int s, int t);
-};
-
-struct DNode {
+struct SearchTriple {
     int idx;
-    DistancePair distance;
+    int out_distance;
+    int in_distance;
     bool is_forward_search;
 
-    DNode(int idx, int s_dist, int t_dist, bool is_forward_search);
-    friend bool operator<(const DNode& a, const DNode& b);
+    SearchTriple(int idx, int s_dist, int t_dist, bool is_forward_search);
+    friend bool operator<(const SearchTriple& a, const SearchTriple& b);
+};
+
+struct SearchTuple {
+    int idx;
+    int distance;
+
+    SearchTuple(int idx, int distance);
+    friend bool operator<(const SearchTuple& a, const SearchTuple& b);
 };
 
 class Dijkstra {
@@ -38,8 +43,10 @@ class Dijkstra {
     using clock = std::chrono::steady_clock;
 
     std::vector<int> touched_nodes;
-    std::vector<DistancePair> distances;
-    std::priority_queue<DNode> queue;
+    std::vector<int> out_distances;
+    std::vector<int> in_distances;
+    std::priority_queue<SearchTriple> bidirectional_queue;
+    std::priority_queue<SearchTuple> unidirectional_queue;
     Graph &graph;
     int last_start;
     
@@ -48,5 +55,7 @@ class Dijkstra {
 
 public:
     Dijkstra(Graph &graph);
-    std::pair<int, int64_t> query(int start, int target);
+    std::pair<int, int64_t> query(int start_id, int target_id);
+
+    int get_shortest_contraction_distance(int source_idx, int target_idx, std::vector<bool> &contracted);
 };
