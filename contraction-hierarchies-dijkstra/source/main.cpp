@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
     for (auto [s, t] : queries) {
         auto [distance, duration] = d.query(s, t);
         if (distance == std::numeric_limits<int>::max()) distance = -1;
-        std::cout << "[OUT]   " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n";
+        std::cout << "\x1B[31m[RESULT]\033[0m " << s << "->" << t << ": d=" << distance << " [t=" << duration << "ms]" << "\n";
     }
 
 

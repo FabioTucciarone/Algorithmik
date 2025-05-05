@@ -15,6 +15,7 @@
 #include <chrono>
 #include <omp.h>
 
+#include "util.h"
 #include "graph.h"
 
 class Graph;

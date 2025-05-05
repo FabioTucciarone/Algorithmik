@@ -23,7 +23,7 @@ void  Graph::permute_graph() {
         return (i1.level > i2.level) || (i1.level == i2.level && i1.id < i2.id);
     });
 
-    node_ordering.resize(num_nodes);
+    node_ordering.resize(nodes.size());
     node_ordering.resize(nodes.size());
     for (int i = 0; i < nodes.size(); i++) {
         node_ordering[nodes[i].id] = i;
@@ -51,23 +51,23 @@ template<EdgeType edge_type>
 void Graph::generate_offset_list(std::vector<int> &offsets) {
 
     offsets.clear();
-    offsets.resize(num_nodes, -1);
+    offsets.resize(nodes.size(), -1);
 
     int node_idx = 0;
     int edge_idx = 0;
-    while (edge_idx < num_edges && node_idx < num_nodes) {
+    while (edge_idx < edges.size() && node_idx < nodes.size()) {
         int edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target_idx : edges[edge_idx].source_idx;
         if (edge_node == node_idx) {
             offsets.at(node_idx) = edge_idx;
-            while (edge_node == node_idx && edge_idx < num_edges - 1) {
+            while (edge_node == node_idx && edge_idx < edges.size() - 1) {
                 edge_idx++;
                 edge_node = (edge_type == EdgeType::INCOMING) ? edges[target_ordering.at(edge_idx)].target_idx : edges[edge_idx].source_idx;
             }
         }
         node_idx++;
     }
-    int previous = num_edges;
-    for (int node_idx = num_nodes - 1; node_idx >= 0; node_idx--) {
+    int previous = edges.size();
+    for (int node_idx = nodes.size() - 1; node_idx >= 0; node_idx--) {
         if (offsets.at(node_idx) == -1) {
             offsets.at(node_idx) = previous;
         } else {
@@ -80,7 +80,7 @@ void Graph::build_graph_representation() {
     
     num_edges = edges.size();
     target_ordering.clear();
-    target_ordering.resize(num_edges);
+    target_ordering.resize(edges.size());
 
     std::iota(target_ordering.begin(), target_ordering.end(), 0);
     std::stable_sort(target_ordering.begin(), target_ordering.end(), [this] (size_t i1, size_t i2) { 
@@ -272,7 +272,7 @@ void Graph::read_from_graph_file(const std::string &file_path) {
 
         std::vector<std::vector<Edge>> shortcut_collection(num_partitions, std::vector<Edge>());
 
-        //#pragma omp parallel for shared(contracted, edge_differences, nodes, partitions, independent_set, shortcut_collection)
+        #pragma omp parallel for
         for (int p = 0; p < num_partitions; p++) {
             
             auto iter = independent_set.begin();
@@ -282,10 +282,6 @@ void Graph::read_from_graph_file(const std::string &file_path) {
             std::stable_sort(start, end, [&](size_t i1, size_t i2) { 
                 return edge_differences[i1] < edge_differences[i2]; 
             });
-            
-            //std::cout << "\npartition[" << p << "] = { ";
-            //for (int i = partitions[p]; i < partitions[p + 1]; i++) std::cout << "[" << independent_set[i] << ", " << edge_differences[independent_set[i]] << "] ";
-            //std::cout << "}\n";
 
             Dijkstra dijkstra(*this);
         
@@ -293,8 +289,6 @@ void Graph::read_from_graph_file(const std::string &file_path) {
 
             for (int i = partitions[p]; i < partitions[p] + num_to_contract; i++) {
                 int node_idx = independent_set[i];
-
-                //std::cout << "   contracting: " << node_idx << " (l=" << level_counter << "), shortcuts:\n";
 
                 nodes[node_idx].level = level_counter;
                 for (const Edge &in_edge : get_incoming_edges(node_idx)) {
@@ -305,10 +299,9 @@ void Graph::read_from_graph_file(const std::string &file_path) {
                         if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx) {
                             
                             int direct_distance = in_edge.cost + out_edge.cost;
-                            int shortest_distance = dijkstra.get_shortest_contraction_distance(in_edge.source_idx, out_edge.target_idx, contracted);
+                            int shortest_distance = direct_distance; //dijkstra.get_shortest_contraction_distance(in_edge.source_idx, out_edge.target_idx, contracted);
                             
                             Edge shortcut {in_edge.source_idx, out_edge.target_idx, in_edge.cost + out_edge.cost};
-                            //std::cout << shortcut << " ";
                             if (shortest_distance >= direct_distance) { 
                                 shortcut_collection[p].push_back(shortcut);
                             }
@@ -317,6 +310,7 @@ void Graph::read_from_graph_file(const std::string &file_path) {
                 }
                 //std::cout << "\n";
             }
+            std::cout << "  p = " << p << "\n";
         }
 
         level_counter++;
@@ -337,13 +331,28 @@ void Graph::read_from_graph_file(const std::string &file_path) {
         build_graph_representation();
 
         num_uncontracted -= independent_set.size();
+
+        std::cout << "Progress: " << (int) ((nodes.size() - num_uncontracted) / (float) nodes.size() * 100.0) << "%\n";
     }
     
     permute_graph();
+    build_graph_representation();
 
-    std::cout << "\n\x1B[31m[RESULT]\033[0m all edges: {\n";
-    for (Edge &e : edges) std::cout << "  (" << get_node_id(e.source_idx) << "," << get_node_id(e.target_idx) << ") " << level_of(e.source_idx) << " " << level_of(e.target_idx) << "\n";
-    std::cout << "}\n";
+    DEBUG(
+        std::cout << "\n\x1B[31m[RESULT]\033[0m all edges: {\n";
+        for (Edge &e : edges) std::cout << "  (" << e.source_idx << "," << e.target_idx << ") " << level_of(e.source_idx) << " " << level_of(e.target_idx) << "\n";
+        std::cout << "}\n";
+
+        std::cout << "\n\x1B[31m[RESULT]\033[0m all nodes: {\n";
+        for (int i = 0; i < num_nodes; i++) {
+            std::cout << "  (" << i << ") l=" << nodes[i].level << "  out: { ";
+            for (const Edge &e : get_outgoing_edges(i)) std::cout << e.target_idx << " ";
+            std::cout << "},  \tin: { ";
+            for (const Edge &e : get_incoming_edges(i)) std::cout << e.source_idx << " ";
+            std::cout << "}\n";
+        }
+        std::cout << "}\n";
+    );
 
 }
 

@@ -1,6 +1,12 @@
 #pragma once
 #include <iostream>
 
+#ifdef DEBUG_MODE
+    #define DEBUG(expr) {expr;}
+#else
+    #define DEBUG(expr)
+#endif
+
 inline void println_error(const std::string &message) {
     std::cout << "\x1B[31m" << "[FEHLER]" << "\033[0m " << message << "\"\n";
 }
