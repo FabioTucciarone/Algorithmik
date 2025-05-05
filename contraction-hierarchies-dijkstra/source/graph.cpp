@@ -1,6 +1,7 @@
 #include "graph.h"
 #include "util.h"
 #include "math.h"
+#include <mutex>
 
 std::ostream& operator<<(std::ostream& os, const Edge& e) {
     os << "(" << e.source_idx << ',' << e.target_idx << ",c=" << e.cost << ")";
@@ -191,9 +192,12 @@ std::vector<int> Graph::partition_independent_set(int num_partitions, std::vecto
     int partition_size = independent_set.size() / num_partitions;
     std::vector<int> partitions(num_partitions + 1, 0);
     for (int p = 1; p < num_partitions; p++) {
-        partitions[p] = p * partition_size + partitions[p - 1];
+        partitions[p] = p * partition_size;
     }
     partitions[num_partitions] = independent_set.size();
+
+    //std::cout << "independent_set.size() = " << independent_set.size() << "\n";
+    //print_list("partitions", partitions);
 
     return partitions;
 }
@@ -261,70 +265,72 @@ void Graph::read_from_graph_file(const std::string &file_path) {
     std::vector<bool> contracted(num_nodes, false);
     std::vector<int> edge_differences(num_nodes, 0); // REALLOC 
 
+
     while (num_uncontracted > 0) {
         // FIND INDEPENDENT SET:
 
         //std::cout << "\n\x1B[31m[ITERATION: " << level_counter << "]\033[0m \n";
 
-        int num_partitions = 4; //TODO: sinnvoll berechnen
+        int num_partitions = 1; //TODO: sinnvoll berechnen
         std::vector<int> independent_set = find_independent_set(contracted); // TODO: reallocates two arrays every time...
         std::vector<int> partitions = partition_independent_set(num_partitions, independent_set, edge_differences, contracted);
 
-        std::vector<std::vector<Edge>> shortcut_collection(num_partitions, std::vector<Edge>());
 
-        #pragma omp parallel for
+        #pragma omp declare reduction (merge : std::vector<Edge> : omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
+
+        std::vector<Edge> shortcut_collection;
+
+        #pragma omp parallel for reduction(merge: shortcut_collection) 
         for (int p = 0; p < num_partitions; p++) {
-            
+                
             auto iter = independent_set.begin();
             auto start = iter + partitions[p];
             auto end   = iter + partitions[p + 1];
 
-            std::stable_sort(start, end, [&](size_t i1, size_t i2) { 
+
+            std::stable_sort(start, end, [&](size_t i1, size_t i2) {
                 return edge_differences[i1] < edge_differences[i2]; 
             });
 
             Dijkstra dijkstra(*this);
-        
+                
+                
             int num_to_contract = std::ceil(0.75 * (partitions[p + 1] - partitions[p]));
 
             for (int i = partitions[p]; i < partitions[p] + num_to_contract; i++) {
-                int node_idx = independent_set[i];
+                int node_idx = independent_set.at(i);
 
-                nodes[node_idx].level = level_counter;
-                for (const Edge &in_edge : get_incoming_edges(node_idx)) {
-                    for (const Edge &out_edge : get_outgoing_edges(node_idx)) {
-                        //std::cout << "   ?1\n";
+                for (Edge in_edge : get_incoming_edges(node_idx)) {
+                    for (Edge out_edge : get_outgoing_edges(node_idx)) {
+                            
                         if (contracted[out_edge.target_idx] || contracted[in_edge.source_idx]) continue;
 
                         if (in_edge.source_idx != out_edge.target_idx && in_edge.source_idx != node_idx && out_edge.target_idx != node_idx) {
-                            
+                                
                             int direct_distance = in_edge.cost + out_edge.cost;
-                            int shortest_distance = direct_distance; //dijkstra.get_shortest_contraction_distance(in_edge.source_idx, out_edge.target_idx, contracted);
-                            
-                            Edge shortcut {in_edge.source_idx, out_edge.target_idx, in_edge.cost + out_edge.cost};
+                            int shortest_distance = direct_distance;//dijkstra.get_shortest_contraction_distance(in_edge.source_idx, out_edge.target_idx, direct_distance, contracted);
+                                
                             if (shortest_distance >= direct_distance) { 
-                                shortcut_collection[p].push_back(shortcut);
+                                shortcut_collection.push_back({in_edge.source_idx, out_edge.target_idx, direct_distance});  // kaputt  
                             }
                         }
                     }
                 }
-                //std::cout << "\n";
+            
             }
-            std::cout << "  p = " << p << "\n";
         }
-
-        level_counter++;
+        
+        edges.insert(edges.end(), shortcut_collection.begin(), shortcut_collection.end());
+        shortcut_collection.clear();
 
         for (int node_idx : independent_set) {
             contracted[node_idx] = true;
         }
-        for (std::vector<Edge> &shortcuts : shortcut_collection) { // TODO: achtung hinundherkopiererei
-            for (Edge &shortcut : shortcuts) {
-                edges.push_back(shortcut);
-                //shortcut_info.push_back(num_edges + num_shortcuts_added, )
-            }
+        for (int node_idx : independent_set) { // TODO: geht in oberer schleife kaputt??
+            nodes[node_idx].level = level_counter;
         }
-        
+        level_counter++;
+
         std::sort(edges.begin(), edges.end());
         //std::stable_sort(shortcut_info.begin(), shortcut_info.end(), [this](size_t i1, size_t i2) {return edges[i1] < edges[i2];});
 
@@ -332,7 +338,7 @@ void Graph::read_from_graph_file(const std::string &file_path) {
 
         num_uncontracted -= independent_set.size();
 
-        std::cout << "Progress: " << (int) ((nodes.size() - num_uncontracted) / (float) nodes.size() * 100.0) << "%\n";
+        std::cout << "Progress: " << (int) ((nodes.size() - num_uncontracted) / (float) nodes.size() * 1000.0) / 10.0 << "%\n";
     }
     
     permute_graph();

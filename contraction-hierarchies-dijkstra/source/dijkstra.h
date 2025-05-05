@@ -58,5 +58,5 @@ public:
     Dijkstra(Graph &graph);
     std::pair<int, int64_t> query(int start_id, int target_id);
 
-    int get_shortest_contraction_distance(int source_idx, int target_idx, std::vector<bool> &contracted);
+    int get_shortest_contraction_distance(int source_idx, int target_idx, int direct_distance, std::vector<bool> &contracted);
 };

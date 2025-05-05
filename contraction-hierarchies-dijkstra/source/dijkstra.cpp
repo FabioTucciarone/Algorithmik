@@ -171,7 +171,7 @@ std::pair<int, int64_t> Dijkstra::query(int start_id, int target_id) {
     return { shortest_path, duration };
 }
 
-int Dijkstra::get_shortest_contraction_distance(int source_idx, int target_idx, std::vector<bool> &contracted) {
+int Dijkstra::get_shortest_contraction_distance(int source_idx, int target_idx, int direct_distance, std::vector<bool> &contracted) {
 
     if(last_start != source_idx) {
         for (int node : touched_nodes) {
@@ -185,6 +185,7 @@ int Dijkstra::get_shortest_contraction_distance(int source_idx, int target_idx, 
 
     for (int i = 0; i < graph.num_nodes; i++) {         
         SearchTuple node = unidirectional_queue.top();
+        if (node.idx == target_idx && out_distances[node.idx] >= direct_distance) return node.distance;
         unidirectional_queue.pop();
         if (!contracted[node.idx] && node.distance == out_distances[node.idx]) {
             for (const Edge &edge : graph.get_outgoing_edges(node.idx)) {
